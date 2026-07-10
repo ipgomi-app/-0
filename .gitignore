@@ -1,0 +1,13 @@
+geocache.json
+geocache.json.bak
+__pycache__/
+*.xlsx
+*.log
+# 개발/참조용 (로컬 보존, 공개 레포 노출 제외)
+.claude/
+prebuild.py
+make_icons.py
+serve.py
+kpp-sync.gs
+worker.js
+icon.svg
