@@ -1,6 +1,6 @@
 {
-  "versionCode": 13,
-  "versionName": "1.12",
+  "versionCode": 14,
+  "versionName": "1.13",
   "url": "https://ipgomi-app.github.io/-0/app-latest.apk",
-  "notes": "보안 강화 - 앱 사용 중 화면 캡쳐/녹화 차단 (업체 데이터 보호)"
+  "notes": "실시간모드 지도 흔들림 개선 - 위치 스무딩+정확도 필터+속도적응"
 }

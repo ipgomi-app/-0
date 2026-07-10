@@ -3988,6 +3988,7 @@ var DRIVE_FOLLOW_ZOOM = 15;   // 실시간 기본 줌(클수록 확대)
 var DRIVE_HEADING_SIGN = -1;   // 헤딩 회전방향 — 반대로 돌면 부호 바꿔 push (1 또는 -1)
 var DRIVE_HEADING_TURN_DEG = 25;   // 이 각도 이상 방향이 바뀌어야 지도 회전(민감도). 클수록 둔감(흔들림↓), 작을수록 민감
 var DRIVE_FOLLOW_CENTER_RATIO = 0.20;   // 헤딩업시 내 위치 화면배치 — 0=정중앙, 0.20=화면60%(중앙서 10%아래), 0.40=70%. 클수록 더 아래
+var DRIVE_FOLLOW_POS_ALPHA = 0.35;   // 위치 스무딩 강도(0~1) — 작을수록 지도 흔들림↓(부드러움), 반응 느려짐. 흔들리면 0.25~0.3으로 낮춰 push
 
 // ───────── 인앱 업데이터 (APK 자동 업데이트) ─────────
 var UPDATE_JSON_URL = "https://ipgomi-app.github.io/-0/version.json";
@@ -4195,7 +4196,7 @@ async function _enterDrive() {
   try {
     // 지도 인증/초기화 실패 시 검은 화면으로 남지 않도록 — 실패(또는 15초 무응답)면 JS 지도로 복귀
     await Promise.race([
-      KMap.open({ companies: _nativeCompanies(), center: { lat: anchor.lat, lng: anchor.lng }, markerStyle: DRIVE_MARKER, followZoom: DRIVE_FOLLOW_ZOOM, headingSign: DRIVE_HEADING_SIGN, followCenterRatio: DRIVE_FOLLOW_CENTER_RATIO, followTurnDeg: DRIVE_HEADING_TURN_DEG }),
+      KMap.open({ companies: _nativeCompanies(), center: { lat: anchor.lat, lng: anchor.lng }, markerStyle: DRIVE_MARKER, followZoom: DRIVE_FOLLOW_ZOOM, headingSign: DRIVE_HEADING_SIGN, followCenterRatio: DRIVE_FOLLOW_CENTER_RATIO, followTurnDeg: DRIVE_HEADING_TURN_DEG, followPosAlpha: DRIVE_FOLLOW_POS_ALPHA }),
       new Promise((_, rej) => setTimeout(() => rej(new Error("지도 초기화 시간 초과")), 15000))
     ]);
   } catch (e) {
