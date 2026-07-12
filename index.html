@@ -2792,6 +2792,8 @@ let _mapReqOnly = false;   // true면 회수요청건(녹색=다음에 회수협
 // "다음에 회수협의"로 확정된 건만 표시 — 그 외 분류는 기존과 동일(미처리+다음에 회수협의)
 function _mapShouldShow(r, rs) {
   if (r.category === "영업지원" && !rs) return false;
+  // 신규업체 1~2매(소량)도 영업지원과 동일 — '다음에 회수협의' 확정건만 지도 표시
+  if (r.category === "신규" && _qtyOf(r) < 3 && !rs) return false;
   if (_mapReqOnly) return rs === "다음에 회수협의";
   return !rs || rs === "다음에 회수협의";
 }
@@ -3675,6 +3677,7 @@ async function renderAdminCompletionStats() {
     if (!r || !r.person) continue;
     const isToday = entry.date === today;
     const reason = cleanReasonTag(entry.reason);   // 로컬에 남은 꼬리표 방어적 정리
+    if (reason === "영업지원 전달" || reason === "기타") continue;   // 영업지원 전달건은 통계 제외
 
     let g = grand.get(reason);
     if (!g) { g = { today:new Set(), total:new Set() }; grand.set(reason, g); }
@@ -3687,7 +3690,7 @@ async function renderAdminCompletionStats() {
     .map(([k]) => k);
   const reasonOrder = [
     ...usedReasons,
-    ...REASONS.filter(r => !grand.has(r)),
+    ...REASONS.filter(r => r !== "영업지원 전달" && !grand.has(r)),
   ];
 
   if (!grand.size) {
