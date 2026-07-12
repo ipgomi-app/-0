@@ -821,6 +821,7 @@ async function pullDone(silent = false) {
       if (r.reason === "다음회수협의") r.reason = "다음에 회수협의";
       if (r.reason === "분실/파손") r.reason = "확인불가(분실)";
       if (r.reason === "중복코드" || r.reason === "대상제외") r.reason = "중복코드/대상제외";
+      if (r.reason === "기타") r.reason = "영업지원 전달";
       const local = doneMap.get(r.id);
       const remoteTime = r.updatedAt || "";
       const localTime  = local?.updatedAt || "";
@@ -977,7 +978,9 @@ async function tryLogin() {
 const GDRIVE_FILE_ID = "";
 
 // ===== 처리사유 목록 =====
-const REASONS = ["다음에 회수협의","회수완료","회수거부","확인불가(분실)","입고오류(전화)","되가져감","다른곳 출고","이전/폐업","중복코드/대상제외","계약처/재입고","기타"];
+const REASONS = ["다음에 회수협의","회수완료","회수거부","확인불가(분실)","입고오류(전화)","되가져감","다른곳 출고","이전/폐업","중복코드/대상제외","계약처/재입고","영업지원 전달"];
+// 지도모드(정보창) 사유선택에서 제외할 사유 — 카드모드 전용
+const MAP_REASON_EXCLUDE = new Set(["영업지원 전달"]);
 const CAT_KEYS = ["25년일반","25년건자재","영업지원","26년일반","26년건자재","신규업체"];
 // 분류 필터칩과 동일한 판정(renderList) — 병합/신규 카드는 해당하는 분류 전부에 카운트
 function catKeysOf(r) {
@@ -1010,6 +1013,7 @@ let doneMap = new Map(Object.entries(_rawDone).map(([id, v]) => {
   if (entry.reason === "다음회수협의") entry.reason = "다음에 회수협의";
   if (entry.reason === "분실/파손") entry.reason = "확인불가(분실)";
   if (entry.reason === "중복코드" || entry.reason === "대상제외") entry.reason = "중복코드/대상제외";
+  if (entry.reason === "기타") entry.reason = "영업지원 전달";
   // 날짜/전화 정규화 (동기화로 Date 형식·선행0 손실이 섞인 경우 복구)
   if (entry.date) entry.date = toYMD(entry.date);
   if (entry.nextDate) entry.nextDate = toYMD(entry.nextDate);
@@ -2916,7 +2920,7 @@ function _infoWindowHtml(r) {
       </div>`
     : `<select onchange="_mapReasonChange(this)" style="margin-top:13px; width:62%; margin-left:auto; display:block; padding:9px; border:2px solid #1976d2; border-radius:6px; font-size:13px; font-weight:700; color:#1976d2; background:#fff;">
         <option value="">-- 사유 선택(완료처리) --</option>
-        ${REASONS.map(v => `<option value="${escapeHtml(v)}"${dEntry?.reason === v ? " selected" : ""}>${escapeHtml(v)}</option>`).join("")}
+        ${REASONS.filter(v => !MAP_REASON_EXCLUDE.has(v)).map(v => `<option value="${escapeHtml(v)}"${dEntry?.reason === v ? " selected" : ""}>${escapeHtml(v)}</option>`).join("")}
       </select>`;
   const html = `<div style="position:relative; padding:9px 11px; min-width:282px; font-size:13px; line-height:1.6;">
     <button onclick="_closeMapInfo()" style="position:absolute; top:4px; right:4px; width:38px; height:38px; border:none; background:#eee; border-radius:9px; font-size:22px; font-weight:900; color:#444; cursor:pointer; line-height:1; padding:0;">✕</button>
