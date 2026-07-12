@@ -1056,7 +1056,7 @@ async function updateStats() {
 }
 
 // 데이터(엑셀) 빌드 날짜 — 이 날짜 '이전'에 완료한 건만 재입고(🔄)로 표시. 데이터 갱신 때 함께 갱신.
-const DATA_BUILD_DATE = "2026-06-21";
+const DATA_BUILD_DATE = "2026-07-12";
 // 데이터 시작일 — 헤더 표시용. prebuild.py가 자동 갱신.
 const DATA_START_DATE = "2026-01-01";
 (function(){ const el = document.getElementById("dataDateBadge"); if (!el) return; const [,m,d] = DATA_START_DATE.split("-"); el.textContent = `(${+m}.${+d}일기준)`; })();
@@ -1833,8 +1833,8 @@ async function buildReasonEntry(id, value) {
 async function renderList() {
   const list = $("#list");
   const all = await dbGetAll("companies");
-  // 입고지 데이터 보유 코드 집합 (입고 버튼 표시 여부 판단용)
-  _inboundCodes = new Set(all.filter(r => r.category === "입고지").map(r => String(r.code)));
+  // 입고내역(inboundList) 보유 코드 집합 (입고 버튼 표시 여부 판단용)
+  _inboundCodes = new Set(all.filter(r => r.inboundList && r.inboundList.length).map(r => String(r.code)));
   const cats = [...document.querySelectorAll(".filter:checked")].map(c => c.value);
   let filtered = all.filter(r =>
     r.category !== "입고지" && (
@@ -2978,7 +2978,11 @@ async function showInboundModal(code, name) {
   let recs = [];
   try {
     const all = await dbGetAll("companies");
-    recs = all.filter(x => x.category === "입고지" && String(x.code) === code);
+    const card = all.find(x => String(x.code) === code && x.inboundList && x.inboundList.length);
+    // 컴팩트 키(p=입고처, t=유형, q=수량, d=입고일) → 표시용 필드로 매핑
+    recs = (card && card.inboundList || []).map(x => ({
+      place: x.p, itype: x.t, inbound: x.q, lastIn: x.d
+    }));
   } catch (_) {}
   // 입고일 오름차순 정렬
   recs.sort((a, b) => String(a.lastIn || "").localeCompare(String(b.lastIn || "")));
@@ -3803,7 +3807,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
 });
 
 // 데이터 버전 (이 값 변경하면 모든 사용자 IndexedDB 자동 갱신)
-const DATA_VERSION = "2026-06-21-144200-enc3";
+const DATA_VERSION = "2026-07-12-123014-enc3";
 const DATA_VER_KEY = "ipgomi_data_ver";
 
 // 사전등록 데이터 자동 로드
