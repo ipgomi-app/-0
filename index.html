@@ -8,7 +8,7 @@
 <title>로그인</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="data.js?v=2026-07-12-170500-enc3"></script>
+<script src="data.js?v=2026-08-25-102056-enc3"></script>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { overscroll-behavior-y: contain; overscroll-behavior: none; }
@@ -36,6 +36,10 @@ header h1 { margin:0; font-size:16px; font-weight:600; }
 .controls input[type=number] { width:60px; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px; }
 .chip { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:#eee; border-radius:14px; font-size:12px; }
 .chip input { margin:0; }
+/* 소스에서 빠진 분류 — 선택 불가(✕ 표시) */
+.chip.off { background:#e0e0e0; color:#9e9e9e; cursor:not-allowed; }
+.chip.off input { display:none; }
+.chip.off .xmark { font-weight:900; font-size:13px; line-height:1; color:#bdbdbd; }
 /* 통계 + 액션 줄 */
 .stat-action-row { display:flex; align-items:center; gap:10px; }
 .stat-col { display:flex; flex-direction:column; gap:4px; flex:1 1 auto; min-width:0; }
@@ -277,12 +281,12 @@ body.native-map #mapLiveBadge { display: none !important; }
     <span>분류:</span>
     <label class="chip"><input type="checkbox" class="filter" value="25년일반" checked>25년일반</label>
     <label class="chip"><input type="checkbox" class="filter" value="25년건자재" checked>25년건자재</label>
-    <label class="chip"><input type="checkbox" class="filter" value="영업지원" checked>영업지원프로</label>
+    <label class="chip off" title="8.25 업데이트부터 데이터가 제공되지 않습니다"><input type="checkbox" class="filter" value="영업지원" disabled><span class="xmark">✕</span>영업지원프로</label>
   </div>
   <div class="row">
     <label class="chip"><input type="checkbox" class="filter" value="26년일반" checked>26년일반</label>
     <label class="chip"><input type="checkbox" class="filter" value="26년건자재" checked>26년건자재</label>
-    <label class="chip"><input type="checkbox" class="filter" value="신규업체" checked>신규업체(담당자)</label>
+    <label class="chip off" title="8.25 업데이트부터 데이터가 제공되지 않습니다"><input type="checkbox" class="filter" value="신규업체" disabled><span class="xmark">✕</span>신규업체(담당자)</label>
   </div>
   <div class="row" style="align-items:center;">
     <span style="font-size:16px; font-weight:800; color:#222;">반경:</span>
@@ -1060,7 +1064,7 @@ async function updateStats() {
 }
 
 // 데이터(엑셀) 빌드 날짜 — 이 날짜 '이전'에 완료한 건만 재입고(🔄)로 표시. 데이터 갱신 때 함께 갱신.
-const DATA_BUILD_DATE = "2026-07-12";
+const DATA_BUILD_DATE = "2026-08-25";
 // 데이터 시작일 — 헤더 표시용. prebuild.py가 자동 갱신.
 const DATA_START_DATE = "2026-01-01";
 (function(){ const el = document.getElementById("dataDateBadge"); if (!el) return; const [,m,d] = DATA_START_DATE.split("-"); el.textContent = `(${+m}.${+d}일기준)`; })();
@@ -1834,9 +1838,50 @@ async function buildReasonEntry(id, value) {
   return entry;
 }
 
+// 분류 이동 마이그레이션 — id가 "분류|코드"라서 업체 분류가 바뀌면 완료/사유·전달사항이 끊긴다.
+//   예: 8.25 업데이트에서 영업지원프로 추출이 없어져 392개 업체가 영업지원 → 26년일반/건자재로 이동.
+//   현재 데이터에 없는 id를 같은 코드의 현재 카드로 옮겨준다(1코드=1카드일 때만).
+let _catMigrated = false;
+function migrateDoneByCode(all) {
+  if (_catMigrated) return;
+  _catMigrated = true;
+  const idSet = new Set(all.map(r => r.id));
+  const cnt = new Map(), byCode = new Map();
+  for (const r of all) {
+    if (r.category === "입고지") continue;
+    const c = String(r.code);
+    cnt.set(c, (cnt.get(c) || 0) + 1);
+    byCode.set(c, r.id);
+  }
+  const target = (id) => {
+    if (idSet.has(id)) return null;
+    const i = id.indexOf("|");
+    if (i < 0) return null;
+    const c = id.slice(i + 1);
+    if (cnt.get(c) !== 1) return null;      // 같은 코드 카드가 여럿이면 건드리지 않음
+    return byCode.get(c) || null;
+  };
+  let moved = 0;
+  for (const [id, entry] of [...doneMap]) {
+    const nid = target(id);
+    if (!nid || doneMap.has(nid)) continue;
+    doneMap.delete(id); doneMap.set(nid, entry); moved++;
+  }
+  let movedMemo = 0;
+  for (const [id, v] of [...memoMap]) {
+    const nid = target(id);
+    if (!nid || memoMap.has(nid)) continue;
+    memoMap.delete(id); memoMap.set(nid, v); movedMemo++;
+  }
+  if (moved) saveDone();
+  if (movedMemo) saveMemo();
+  if (moved || movedMemo) console.log(`[분류이동 이관] 완료기록 ${moved}건 / 전달사항 ${movedMemo}건`);
+}
+
 async function renderList() {
   const list = $("#list");
   const all = await dbGetAll("companies");
+  migrateDoneByCode(all);
   // 입고내역(inboundList) 보유 코드 집합 (입고 버튼 표시 여부 판단용)
   _inboundCodes = new Set(all.filter(r => r.inboundList && r.inboundList.length).map(r => String(r.code)));
   const cats = [...document.querySelectorAll(".filter:checked")].map(c => c.value);
@@ -2489,7 +2534,7 @@ $("#radius").addEventListener("change", () => {
 document.getElementById("btnReset").addEventListener("click", async () => {
   if (!(await customConfirm("모든 설정을 초기화할까요?"))) return;
   // 1) 분류 전체 체크
-  document.querySelectorAll(".filter").forEach(c => { c.checked = true; });
+  document.querySelectorAll(".filter:not(:disabled)").forEach(c => { c.checked = true; });
   saveCatFilters();
   // 2) 반경 3km
   $("#radius").value = "3";
@@ -3814,7 +3859,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
 });
 
 // 데이터 버전 (이 값 변경하면 모든 사용자 IndexedDB 자동 갱신)
-const DATA_VERSION = "2026-07-12-170500-enc3";
+const DATA_VERSION = "2026-08-25-102056-enc3";
 const DATA_VER_KEY = "ipgomi_data_ver";
 
 // 사전등록 데이터 자동 로드
@@ -3882,7 +3927,7 @@ async function loadPrebuiltData(force = false) {
     // 분류 체크 복원 (저장된 게 있고 1개 이상일 때만 — 전부 해제 상태 복원 방지)
     const savedCats = JSON.parse(localStorage.getItem("ipgomi_cats2") || "null");
     if (Array.isArray(savedCats) && savedCats.length) {
-      document.querySelectorAll(".filter").forEach(c => { c.checked = savedCats.includes(c.value); });
+      document.querySelectorAll(".filter:not(:disabled)").forEach(c => { c.checked = savedCats.includes(c.value); });
     }
     // 마지막 정렬/필터 모드 복원 (위치고정 제외 — 세션 한정)
     const savedSort = localStorage.getItem("ipgomi_sort") || "dist";
